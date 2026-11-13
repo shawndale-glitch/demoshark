@@ -1,0 +1,119 @@
+# yaml-language-server: $schema=../demoshark/schema/walkthrough.schema.json
+# DEMOShark walk-through spec: the single source for the video, the deck and the guide.
+#   demoshark check specs/paydesk-approve-invoice.yaml     validate it (rules DS1-DS10)
+#   demoshark demo                                         run it against the bundled Paydesk app
+# Reference: docs/SPEC-REFERENCE.md
+demoshark: 1
+
+walkthrough:
+  id: paydesk-approve-invoice
+  title:
+    en: Approve an invoice
+    es: Aprobar una factura
+    th: อนุมัติใบแจ้งหนี้
+  summary:
+    en: Find a checked invoice by its number, open it and approve it, so its payment can be scheduled.
+    es: Busque una factura revisada por su número, ábrala y apruébela para que se pueda programar el pago.
+    th: ค้นหาใบแจ้งหนี้ที่ตรวจสอบแล้วด้วยเลขที่ เปิดและอนุมัติ เพื่อให้กำหนดการชำระเงินได้
+  audience: Finance team (accounts payable clerks and managers)
+  owner: Example process owner
+  version: 1.0.0
+  environment: training          # test | training | demo; production is always rejected (DS3)
+  languages: [en, es, th]
+
+app:
+  name: Paydesk
+  base_url: http://127.0.0.1:8765
+  lang_param: lang               # the app picks its language from ?lang=xx
+  adapter: paydesk               # creates, reads and deletes the test data (demoshark/adapters/)
+
+voice:
+  engine: auto                   # auto | edge | sapi | none  (auto: edge, else Windows SAPI, else silent)
+  preset: smooth                 # smooth | warm-male | bright  (listen: demoshark voices --sample --lang en)
+  # voices: { en: en-US-AvaMultilingualNeural }   # optional: override the preset per language
+  # rate: "-6%"                                     # optional: slower / faster
+  # pitch: "-2Hz"                                   # optional: lower / higher
+
+fixtures:                        # test data created before the run and deleted after it
+  invoice: { supplier: Demo Supplier Delta, amount: 6400, due: +30d }
+
+steps:
+  - id: S1
+    say:
+      en: Open Paydesk on the invoices screen.
+      es: Abra Paydesk en la pantalla de facturas.
+      th: เปิด Paydesk ที่หน้าจอใบแจ้งหนี้
+    do: { action: open, path: / }
+    expect: { target: { role: heading, name: { en: Find an invoice, es: Buscar una factura, th: ค้นหาใบแจ้งหนี้ } } }
+    result:
+      en: The Find an invoice screen opens.
+      es: Se abre la pantalla Buscar una factura.
+      th: หน้าจอค้นหาใบแจ้งหนี้จะเปิดขึ้น
+
+  - id: S2
+    say:
+      en: Type the invoice number.
+      es: Escriba el número de la factura.
+      th: พิมพ์เลขที่ใบแจ้งหนี้
+    do: { action: fill, target: { label: { en: Invoice number, es: Nº de factura, th: เลขที่ใบแจ้งหนี้ } }, value: "{{invoice.number}}" }
+    expect: { target: { label: { en: Invoice number, es: Nº de factura, th: เลขที่ใบแจ้งหนี้ } }, value: "{{invoice.number}}" }
+    result:
+      en: The number is in the Invoice number box.
+      es: El número aparece en la casilla Nº de factura.
+      th: เลขที่ปรากฏในช่องเลขที่ใบแจ้งหนี้
+
+  - id: S3
+    say:
+      en: Select Search. The invoice appears in the list.
+      es: Pulse Buscar. La factura aparece en la lista.
+      th: กดค้นหา ใบแจ้งหนี้จะปรากฏในรายการ
+    do: { action: click, target: { role: button, name: { en: Search, es: Buscar, th: ค้นหา } } }
+    expect: { target: { role: link, name: "{{invoice.number}}" } }
+    result:
+      en: The invoice is listed.
+      es: La factura aparece en la lista.
+      th: ใบแจ้งหนี้แสดงอยู่ในรายการ
+
+  - id: S4
+    say:
+      en: Select the invoice number to open it.
+      es: Pulse el número de la factura para abrirla.
+      th: กดที่เลขที่ใบแจ้งหนี้เพื่อเปิด
+    do: { action: click, target: { role: link, name: "{{invoice.number}}" } }
+    expect: { target: { role: heading, name: { en: Invoice details, es: Detalle de la factura, th: รายละเอียดใบแจ้งหนี้ } } }
+    result:
+      en: The invoice details open.
+      es: Se abre el detalle de la factura.
+      th: หน้ารายละเอียดใบแจ้งหนี้จะเปิดขึ้น
+
+  - id: S5
+    say:
+      en: Select Approve.
+      es: Pulse Aprobar.
+      th: กดอนุมัติ
+    do: { action: click, target: { role: button, name: { en: Approve, es: Aprobar, th: อนุมัติ } } }
+    expect: { target: { role: dialog, name: { en: Approve invoice, es: Aprobar factura, th: อนุมัติใบแจ้งหนี้ } } }
+    result:
+      en: The Approve invoice window opens.
+      es: Se abre la ventana Aprobar factura.
+      th: หน้าต่างอนุมัติใบแจ้งหนี้จะเปิดขึ้น
+
+  - id: S6
+    say:
+      en: Check the supplier and the amount, then select Confirm.
+      es: Compruebe el proveedor y el importe y pulse Confirmar.
+      th: ตรวจสอบผู้ขายและจำนวนเงิน แล้วกดยืนยัน
+    do:
+      action: click
+      target: { role: button, name: { en: Confirm, es: Confirmar, th: ยืนยัน }, within: { role: dialog, name: { en: Approve invoice, es: Aprobar factura, th: อนุมัติใบแจ้งหนี้ } } }
+    expect: { target: { text: { en: "Invoice {{invoice.number}} approved.", es: "Factura {{invoice.number}} aprobada.", th: "อนุมัติใบแจ้งหนี้ {{invoice.number}} แล้ว" } } }
+    result:
+      en: Paydesk confirms that the invoice is approved.
+      es: Paydesk confirma que la factura está aprobada.
+      th: Paydesk ยืนยันว่าอนุมัติใบแจ้งหนี้แล้ว
+
+verify:                          # read back through the app's API after the run
+  - { fixture: invoice, field: status, equals: approved }
+  - { fixture: invoice, field: approved_by, filled: true }
+
+outputs: [video, deck, guide]    # built in parallel from the same run, one set per language

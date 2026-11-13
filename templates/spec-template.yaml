@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=../demoshark/schema/walkthrough.schema.json
+# DEMOShark spec template. Copy to specs/<your-id>.yaml, fill in the <...>, then:
+#   python -m demoshark check specs/<your-id>.yaml
+#   python -m demoshark run   specs/<your-id>.yaml --headed
+# Every text can be one string (all languages) or one per language: { en: ..., es: ... }.
+# Reference: docs/SPEC-REFERENCE.md
+demoshark: 1
+
+walkthrough:
+  id: <app-task-name>                 # lowercase, digits and dashes; names the output folder
+  title: { en: <Do the task> }
+  summary: { en: <One sentence: what the person achieves and why it matters.> }
+  audience: <Who watches it>
+  owner: <Process owner>
+  version: 1.0.0
+  environment: test                   # test | training | demo
+  languages: [en]
+
+app:
+  name: <App name>
+  base_url: <https://test.example.com>
+  lang_param: lang                    # remove if the app has no language parameter
+  adapter: none                       # none, paydesk, or your own (docs/ADAPTING.md)
+
+voice:
+  engine: auto
+  preset: smooth
+
+fixtures: {}                          # test data your adapter creates, e.g. { order: { customer: Demo Customer } }
+
+steps:
+  - id: S1
+    say: { en: <Open the app on the ... screen.> }
+    do: { action: open, path: / }
+    expect: { target: { role: heading, name: { en: <Heading you then see> } } }
+    result: { en: <The ... screen opens.> }
+
+  - id: S2
+    say: { en: <Select ... .> }
+    do: { action: click, target: { role: button, name: { en: <Visible button text> } } }
+    expect: { target: { role: dialog, name: { en: <Title of the window that opens> } } }
+    result: { en: <The ... window opens.> }
+
+verify: []                            # e.g. - { fixture: order, field: status, equals: shipped }
+
+outputs: [video, deck, guide]
