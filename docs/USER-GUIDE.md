@@ -51,6 +51,7 @@ A spec with errors never runs.
 python -m demoshark run specs/my-walkthrough.yaml              # every language in the spec
 python -m demoshark run specs/my-walkthrough.yaml --lang es    # one language
 python -m demoshark run specs/my-walkthrough.yaml --headed     # watch the browser
+python -m demoshark run specs/my-walkthrough.yaml --captions none   # no caption bar in the recording (another tool adds its own)
 python -m demoshark run specs/my-walkthrough.yaml --voice none # silent, captions only (fast, offline)
 python -m demoshark run specs/my-walkthrough.yaml --only deck  # build only some outputs
 ```
