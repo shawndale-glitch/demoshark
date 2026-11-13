@@ -58,6 +58,7 @@ class StepResult:
     voice: float = 0.0       # narration length
     shot: str = ""           # screenshot file (relative to the language folder)
     error: str = ""
+    box: dict | None = None  # the control's bounding box in viewport pixels {x, y, width, height}
 
 
 @dataclass
@@ -76,6 +77,8 @@ class Run:
     verify: list[dict] = field(default_factory=list)
     recording: str = ""
     out: str = ""
+    viewport: dict = field(default_factory=dict)   # recording size, so boxes can be mapped onto video frames
+    captions: bool = True                          # False: the caption bar was left out of the recording
 
     def save(self) -> None:
         Path(self.out, "run.json").write_text(json.dumps(asdict(self), ensure_ascii=False, indent=2), encoding="utf-8")
@@ -101,7 +104,7 @@ def _describe(target: dict, spec: Spec, lang: str, data: dict) -> str:
 
 
 def record(spec: Spec, lang: str, out_root: Path, engine: str = "auto", headed: bool = False,
-           base_url: str | None = None) -> Run:
+           base_url: str | None = None, captions: bool = True) -> Run:
     from playwright.sync_api import sync_playwright
 
     d = spec.data
@@ -112,7 +115,8 @@ def record(spec: Spec, lang: str, out_root: Path, engine: str = "auto", headed: 
     (out / "voice").mkdir(parents=True)
     (out / "shots").mkdir()
     run = Run(spec.id, lang, spec.meta("title", lang), spec.meta("summary", lang), d["app"]["name"],
-              d["walkthrough"]["version"], started=datetime.now().isoformat(timespec="seconds"), out=str(out))
+              d["walkthrough"]["version"], started=datetime.now().isoformat(timespec="seconds"), out=str(out),
+              captions=captions)
 
     # 1. test data
     adapter = adapters.get(d["app"].get("adapter"), base)
@@ -129,6 +133,7 @@ def record(spec: Spec, lang: str, out_root: Path, engine: str = "auto", headed: 
 
         # 3. the recorded run
         vp = d["app"].get("viewport", {"width": 1280, "height": 720})
+        run.viewport = dict(vp)
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=not headed)
             ctx = browser.new_context(viewport=vp, locale=lang, record_video_dir=str(out / "_rec"), record_video_size=vp)
@@ -138,7 +143,7 @@ def record(spec: Spec, lang: str, out_root: Path, engine: str = "auto", headed: 
             total = len(spec.steps)
             try:
                 for i, (st, res) in enumerate(zip(spec.steps, run.steps), 1):
-                    _step(page, st, res, i, total, spec, lang, data, base, out, t0)
+                    _step(page, st, res, i, total, spec, lang, data, base, out, t0, captions)
                     res.status = "pass"
                 page.wait_for_timeout(1500)
                 run.passed = True
@@ -173,7 +178,7 @@ def record(spec: Spec, lang: str, out_root: Path, engine: str = "auto", headed: 
 
 
 def _step(page, st: dict, res: StepResult, i: int, total: int, spec: Spec, lang: str, data: dict,
-          base: str, out: Path, t0: float) -> None:
+          base: str, out: Path, t0: float, captions: bool = True) -> None:
     do = st["do"]
     lp = spec.data["app"].get("lang_param")
     if do["action"] == "open":
@@ -183,7 +188,8 @@ def _step(page, st: dict, res: StepResult, i: int, total: int, spec: Spec, lang:
         page.goto(url)
         page.wait_for_load_state("networkidle")
     res.start = round(time.monotonic() - t0, 2)
-    page.evaluate("([t, n, k]) => window.__ds.caption(t, n, k)", [res.say, i, total])
+    if captions:
+        page.evaluate("([t, n, k]) => window.__ds.caption(t, n, k)", [res.say, i, total])
     loc = None
     if "target" in do:
         loc = _locate(page, do["target"], spec, lang, data).first
@@ -194,6 +200,7 @@ def _step(page, st: dict, res: StepResult, i: int, total: int, spec: Spec, lang:
                              f"within {STEP_TIMEOUT_MS // 1000} s") from None
         box = loc.bounding_box()
         if box:
+            res.box = {k: round(box[k], 1) for k in ("x", "y", "width", "height")}
             page.evaluate("b => window.__ds.ring(b)", box)
     # screenshot for the guide and the deck: the control to use, ringed, without the caption bar
     shot = out / "shots" / f"{st['id']}.png"

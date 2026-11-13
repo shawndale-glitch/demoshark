@@ -54,7 +54,8 @@ def _record_and_build(sp, langs, a, base_url=None) -> int:
     runs, t0 = [], time.monotonic()
     for lang in langs:
         print(f"> recording {sp.id} [{lang}] ...", flush=True)
-        r = runner.record(sp, lang, out, engine=a.voice, headed=a.headed, base_url=base_url)
+        r = runner.record(sp, lang, out, engine=a.voice, headed=a.headed, base_url=base_url,
+                          captions=getattr(a, "captions", "burn") != "none")
         failed = next((s for s in r.steps if s.status == "fail"), None)
         status = "PASS" if r.passed else (f"FAIL at {failed.id}: {failed.error}" if failed else "FAIL in the data check")
         print(f"  {status}  {sum(s.status == 'pass' for s in r.steps)}/{len(r.steps)} steps, {r.seconds} s, voice {r.engine}")
@@ -153,6 +154,8 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--voice", default="spec", choices=["spec", "auto", "edge", "sapi", "none"],
                        help="voice engine (default: what the spec says)")
         p.add_argument("--headed", action="store_true", help="show the browser while recording")
+        p.add_argument("--captions", default="burn", choices=["burn", "none"],
+                       help="none: leave the caption bar out of the recording (for tools that add their own)")
         p.add_argument("--out", default="build", help="output folder (default: build)")
         p.add_argument("--only", help="build only some outputs: video,deck,guide")
 
